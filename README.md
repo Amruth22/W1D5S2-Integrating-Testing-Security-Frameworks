@@ -30,7 +30,14 @@ Visit: http://localhost:8000/docs to see the interactive API documentation!
 
 ### 3. Run Tests
 ```bash
+# Run API tests (integration tests)
 python test_api.py
+
+# Run unit tests (individual functions)
+python unit_tests.py
+
+# Or run both with pytest
+pytest -v
 ```
 
 ### 4. Run Security Checks
@@ -52,17 +59,11 @@ python security_check.py
 - `POST /movies/{id}/rate` - Rate a movie (1-5 stars)
 - `GET /profile` - Get your profile and ratings
 
-## 🧪 Testing Examples
+## 🧪 Two Types of Tests
 
-### Basic Test
-```python
-def test_get_movies():
-    response = client.get("/movies")
-    assert response.status_code == 200
-    assert len(response.json()) == 3
-```
+### **Integration Tests** (`test_api.py`)
+Test the complete API through HTTP requests:
 
-### Authentication Test
 ```python
 def test_user_login():
     # Register user
@@ -78,12 +79,19 @@ def test_user_login():
     assert "access_token" in response.json()
 ```
 
-### Security Test
+### **Unit Tests** (`unit_tests.py`)
+Test individual functions directly:
+
 ```python
-def test_protected_endpoint():
-    # Try without token
-    response = client.get("/profile")
-    assert response.status_code == 403  # Forbidden
+def test_password_hashing():
+    password = "test123"
+    hashed = hash_password(password)
+    assert verify_password(password, hashed) == True
+
+def test_jwt_token_creation():
+    token = create_access_token("test@example.com")
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload["sub"] == "test@example.com"
 ```
 
 ## 🔒 Security Features
@@ -111,9 +119,10 @@ def test_protected_endpoint():
 3. Try the endpoints in the browser
 
 ### Step 2: Run Tests
-1. Look at `test_api.py` to understand test structure
-2. Run tests: `python test_api.py`
-3. See which tests pass/fail
+1. **Integration Tests**: `python test_api.py` (tests complete API)
+2. **Unit Tests**: `python unit_tests.py` (tests individual functions)
+3. **All Tests**: `pytest -v` (runs both types)
+4. Compare the difference between unit and integration testing
 
 ### Step 3: Security Testing
 1. Run security checks: `python security_check.py`
@@ -121,15 +130,17 @@ def test_protected_endpoint():
 3. Learn about common vulnerabilities
 
 ### Step 4: Experiment
-1. Add new endpoints
-2. Write new tests
-3. Try breaking the security (safely!)
+1. **Add new functions** and write unit tests for them
+2. **Add new endpoints** and write integration tests
+3. **Practice mocking** - try mocking different parts
+4. **Try breaking the security** (safely!) and see tests catch it
 
 ## 🛠️ Code Structure
 
 ```
 ├── main.py           # Main FastAPI application
-├── test_api.py       # Test cases
+├── test_api.py       # Integration tests (API endpoints)
+├── unit_tests.py     # Unit tests (individual functions)
 ├── security_check.py # Security testing
 ├── requirements.txt  # Dependencies
 └── README.md        # This file
@@ -157,32 +168,62 @@ def test_protected_endpoint():
 
 ## 🧪 Test Categories
 
-### 1. **Basic Endpoints** (`TestBasicEndpoints`)
+### **Integration Tests** (`test_api.py`)
+
+#### 1. **Basic Endpoints** (`TestBasicEndpoints`)
 - Root endpoint
 - Health check
 - Public movie list
 
-### 2. **Authentication** (`TestAuthentication`)
+#### 2. **Authentication** (`TestAuthentication`)
 - User registration
 - User login
 - Password validation
 - Duplicate email handling
 
-### 3. **Movie Rating** (`TestMovieRating`)
+#### 3. **Movie Rating** (`TestMovieRating`)
 - Rating movies
 - Authentication required
 - Invalid ratings
 - Non-existent movies
 
-### 4. **User Profile** (`TestUserProfile`)
+#### 4. **User Profile** (`TestUserProfile`)
 - Getting user profile
 - Showing user ratings
 - Authentication required
 
-### 5. **Security** (`TestSecurity`)
+#### 5. **Security** (`TestSecurity`)
 - Invalid tokens
 - Missing tokens
 - Protected endpoints
+
+### **Unit Tests** (`unit_tests.py`)
+
+#### 1. **Password Functions** (`TestPasswordFunctions`)
+- Password hashing
+- Password verification
+- Salt uniqueness
+
+#### 2. **JWT Functions** (`TestJWTFunctions`)
+- Token creation
+- Token expiration
+- Token security
+- Invalid tokens
+
+#### 3. **Data Validation** (`TestDataValidation`)
+- Rating validation (1-5)
+- Email format checking
+- Password length validation
+
+#### 4. **Business Logic** (`TestBusinessLogic`)
+- Average rating calculation
+- Empty data handling
+- Mathematical operations
+
+#### 5. **Mocking Examples** (`TestMockingExamples`)
+- Mocked databases
+- Mocked time
+- Isolated testing
 
 ## 🔍 Security Checks
 
