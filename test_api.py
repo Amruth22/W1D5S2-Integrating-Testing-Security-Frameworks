@@ -122,19 +122,26 @@ class TestAuthentication:
 class TestMovieRating:
     """Test movie rating functionality"""
     
-    def get_auth_token(self):
+    def get_auth_token(self, email_suffix="rating"):
         """Helper function to get authentication token"""
+        # Create unique user for this test
+        unique_user = {
+            "email": f"{email_suffix}@example.com",
+            "password": "password123",
+            "full_name": f"{email_suffix.title()} User"
+        }
+        
         # Register and login user
-        client.post("/register", json=test_user)
+        client.post("/register", json=unique_user)
         login_response = client.post("/login", json={
-            "email": test_user["email"], 
-            "password": test_user["password"]
+            "email": unique_user["email"], 
+            "password": unique_user["password"]
         })
         return login_response.json()["access_token"]
     
     def test_rate_movie_success(self):
         """Test user can rate a movie"""
-        token = self.get_auth_token()
+        token = self.get_auth_token("ratesuccess")
         headers = {"Authorization": f"Bearer {token}"}
         
         # Rate movie with ID 1
@@ -154,7 +161,7 @@ class TestMovieRating:
     
     def test_rate_nonexistent_movie(self):
         """Test rating non-existent movie fails"""
-        token = self.get_auth_token()
+        token = self.get_auth_token("ratenonexist")
         headers = {"Authorization": f"Bearer {token}"}
         
         rating_data = {"rating": 3}
@@ -165,7 +172,7 @@ class TestMovieRating:
     
     def test_invalid_rating(self):
         """Test invalid rating values are rejected"""
-        token = self.get_auth_token()
+        token = self.get_auth_token("invalidrating")
         headers = {"Authorization": f"Bearer {token}"}
         
         # Test rating too high
@@ -179,25 +186,32 @@ class TestMovieRating:
 class TestUserProfile:
     """Test user profile functionality"""
     
-    def get_auth_token(self):
+    def get_auth_token(self, email_suffix="profile"):
         """Helper function to get authentication token"""
-        client.post("/register", json=test_user)
+        # Create unique user for this test
+        unique_user = {
+            "email": f"{email_suffix}@example.com",
+            "password": "password123",
+            "full_name": f"{email_suffix.title()} User"
+        }
+        
+        client.post("/register", json=unique_user)
         login_response = client.post("/login", json={
-            "email": test_user["email"], 
-            "password": test_user["password"]
+            "email": unique_user["email"], 
+            "password": unique_user["password"]
         })
         return login_response.json()["access_token"]
     
     def test_get_profile(self):
         """Test user can get their profile"""
-        token = self.get_auth_token()
+        token = self.get_auth_token("getprofile")
         headers = {"Authorization": f"Bearer {token}"}
         
         response = client.get("/profile", headers=headers)
         
         assert response.status_code == 200
         profile = response.json()
-        assert profile["user"]["email"] == test_user["email"]
+        assert profile["user"]["email"] == "getprofile@example.com"
         assert "ratings" in profile
         assert "total_ratings" in profile
     
@@ -208,7 +222,7 @@ class TestUserProfile:
     
     def test_profile_with_ratings(self):
         """Test profile shows user's ratings"""
-        token = self.get_auth_token()
+        token = self.get_auth_token("profileratings")
         headers = {"Authorization": f"Bearer {token}"}
         
         # Rate a movie first
@@ -244,10 +258,16 @@ class TestMovieData:
     def test_movie_with_ratings(self):
         """Test movie shows average rating after being rated"""
         # Register user and get token
-        client.post("/register", json=test_user)
+        movie_rating_user = {
+            "email": "movierating@example.com",
+            "password": "password123",
+            "full_name": "Movie Rating User"
+        }
+        
+        client.post("/register", json=movie_rating_user)
         login_response = client.post("/login", json={
-            "email": test_user["email"], 
-            "password": test_user["password"]
+            "email": movie_rating_user["email"], 
+            "password": movie_rating_user["password"]
         })
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
