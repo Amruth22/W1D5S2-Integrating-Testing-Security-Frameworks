@@ -45,24 +45,38 @@ class TestAuthentication:
     
     def test_user_registration(self):
         """Test user can register successfully"""
-        response = client.post("/register", json=test_user)
+        new_user = {
+            "email": "newuser@example.com",
+            "password": "password123",
+            "full_name": "New User"
+        }
+        response = client.post("/register", json=new_user)
         assert response.status_code == 200
         assert "User registered successfully" in response.json()["message"]
     
     def test_duplicate_registration(self):
         """Test duplicate email registration fails"""
+        duplicate_user = {
+            "email": "duplicate@example.com",
+            "password": "password123",
+            "full_name": "Duplicate User"
+        }
+        
         # Register first time
-        client.post("/register", json=test_user)
+        client.post("/register", json=duplicate_user)
         
         # Try to register again
-        response = client.post("/register", json=test_user)
+        response = client.post("/register", json=duplicate_user)
         assert response.status_code == 400
         assert "already registered" in response.json()["detail"]
     
     def test_short_password(self):
         """Test short password is rejected"""
-        short_password_user = test_user.copy()
-        short_password_user["password"] = "123"  # Too short
+        short_password_user = {
+            "email": "shortpass@example.com",  # Unique email
+            "password": "123",  # Too short
+            "full_name": "Short Pass User"
+        }
         
         response = client.post("/register", json=short_password_user)
         assert response.status_code == 400
@@ -70,11 +84,17 @@ class TestAuthentication:
     
     def test_user_login(self):
         """Test user can login and get token"""
+        login_user = {
+            "email": "loginuser@example.com",
+            "password": "password123",
+            "full_name": "Login User"
+        }
+        
         # Register user first
-        client.post("/register", json=test_user)
+        client.post("/register", json=login_user)
         
         # Login
-        login_data = {"email": test_user["email"], "password": test_user["password"]}
+        login_data = {"email": login_user["email"], "password": login_user["password"]}
         response = client.post("/login", json=login_data)
         
         assert response.status_code == 200
@@ -83,11 +103,17 @@ class TestAuthentication:
     
     def test_wrong_password(self):
         """Test login with wrong password fails"""
+        wrong_pass_user = {
+            "email": "wrongpass@example.com",
+            "password": "correctpassword",
+            "full_name": "Wrong Pass User"
+        }
+        
         # Register user first
-        client.post("/register", json=test_user)
+        client.post("/register", json=wrong_pass_user)
         
         # Try login with wrong password
-        wrong_login = {"email": test_user["email"], "password": "wrongpassword"}
+        wrong_login = {"email": wrong_pass_user["email"], "password": "wrongpassword"}
         response = client.post("/login", json=wrong_login)
         
         assert response.status_code == 401
