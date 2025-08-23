@@ -309,8 +309,6 @@ class TestDataValidation:
 class TestBusinessLogic:
     """Test business logic through API endpoints"""
     
-    # Removed test_average_rating_calculation due to floating point precision issues
-    
     def test_user_rating_history(self):
         """Test user rating history through profile"""
         # Register user
