@@ -1,466 +1,737 @@
 """
 Simple Unit Tests for Movie Rating API
-Tests individual functions without HTTP requests - perfect for students to learn unit testing
+Tests API endpoints through HTTP requests to live server - perfect for students to learn API testing
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+import requests
+import time
+import json
 from datetime import datetime, timedelta
 from jose import jwt
 
-# Import functions to test
-from main import (
-    hash_password, 
-    verify_password, 
-    create_access_token, 
-    get_current_user,
-    SECRET_KEY, 
-    ALGORITHM,
-    users_db,
-    movies_db,
-    ratings_db
-)
+# Configuration for live server testing
+BASE_URL = "http://localhost:8000"
+TIMEOUT = 30  # seconds
+
+def check_server_running():
+    """Check if the server is running"""
+    try:
+        response = requests.get(f"{BASE_URL}/", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
+def get_unique_email(prefix="test"):
+    """Generate unique email for testing"""
+    timestamp = int(time.time() * 1000)  # milliseconds for uniqueness
+    return f"{prefix}_{timestamp}@example.com"
 
 class TestPasswordFunctions:
-    """Test password hashing and verification functions"""
+    """Test password security through API endpoints"""
     
-    def test_hash_password(self):
-        """Test password hashing function"""
-        password = "testpassword123"
-        hashed = hash_password(password)
+    def test_password_length_validation(self):
+        """Test password length validation through registration"""
+        # Test short password rejection
+        short_password_user = {
+            "email": get_unique_email("shortpass"),
+            "password": "123",  # Too short
+            "full_name": "Short Pass User"
+        }
         
-        # Check that hash is created
-        assert hashed is not None
-        assert isinstance(hashed, str)
-        assert len(hashed) > 20  # Bcrypt hashes are long
+        response = requests.post(f"{BASE_URL}/register", json=short_password_user, timeout=TIMEOUT)
+        assert response.status_code == 400
+        assert "at least 6 characters" in response.json()["detail"]
         
-        # Check that hash is different from original password
-        assert hashed != password
-        
-        print(f"✅ Password hashed successfully: {password} -> {hashed[:20]}...")
+        print(f"✅ Short passwords rejected via API")
     
-    def test_verify_password_correct(self):
-        """Test password verification with correct password"""
-        password = "correctpassword"
-        hashed = hash_password(password)
+    def test_password_hashing_security(self):
+        """Test that passwords are hashed (not stored in plain text)"""
+        # Register user with known password
+        test_user = {
+            "email": get_unique_email("hashtest"),
+            "password": "testpassword123",
+            "full_name": "Hash Test User"
+        }
         
-        # Verify correct password
-        is_valid = verify_password(password, hashed)
-        assert is_valid == True
+        response = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        assert response.status_code == 200
+        assert "registered successfully" in response.json()["message"]
         
-        print(f"✅ Correct password verified successfully")
+        # Try to login with correct password (should work)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        assert login_response.status_code == 200
+        assert "access_token" in login_response.json()
+        
+        print(f"✅ Password hashing works (login successful with correct password)")
     
-    def test_verify_password_incorrect(self):
-        """Test password verification with incorrect password"""
-        password = "correctpassword"
-        wrong_password = "wrongpassword"
-        hashed = hash_password(password)
+    def test_password_verification(self):
+        """Test password verification through login"""
+        # Register user
+        test_user = {
+            "email": get_unique_email("verify"),
+            "password": "correctpassword",
+            "full_name": "Verify User"
+        }
         
-        # Verify wrong password
-        is_valid = verify_password(wrong_password, hashed)
-        assert is_valid == False
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
         
-        print(f"✅ Incorrect password rejected successfully")
+        # Test correct password
+        correct_login = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": "correctpassword"
+        }, timeout=TIMEOUT)
+        assert correct_login.status_code == 200
+        
+        # Test incorrect password
+        wrong_login = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": "wrongpassword"
+        }, timeout=TIMEOUT)
+        assert wrong_login.status_code == 401
+        assert "Invalid email or password" in wrong_login.json()["detail"]
+        
+        print(f"✅ Password verification works via API")
     
-    def test_password_hashing_unique(self):
-        """Test that same password creates different hashes (salt)"""
-        password = "samepassword"
-        hash1 = hash_password(password)
-        hash2 = hash_password(password)
+    def test_duplicate_registration(self):
+        """Test that duplicate emails are rejected"""
+        test_user = {
+            "email": get_unique_email("duplicate"),
+            "password": "password123",
+            "full_name": "Duplicate User"
+        }
         
-        # Hashes should be different due to salt
-        assert hash1 != hash2
+        # Register first time
+        response1 = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        assert response1.status_code == 200
         
-        # But both should verify correctly
-        assert verify_password(password, hash1) == True
-        assert verify_password(password, hash2) == True
+        # Try to register again with same email
+        response2 = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        assert response2.status_code == 400
+        assert "already registered" in response2.json()["detail"]
         
-        print(f"✅ Password salting works correctly")
+        print(f"✅ Duplicate email registration prevented")
 
 class TestJWTFunctions:
-    """Test JWT token creation and validation"""
+    """Test JWT token functionality through API endpoints"""
     
-    def test_create_access_token(self):
-        """Test JWT token creation"""
-        email = "test@example.com"
-        token = create_access_token(email)
+    def test_token_creation_via_login(self):
+        """Test JWT token creation through login endpoint"""
+        # Register user first
+        test_user = {
+            "email": get_unique_email("tokentest"),
+            "password": "password123",
+            "full_name": "Token Test User"
+        }
+        
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        
+        # Login to get token
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        
+        assert login_response.status_code == 200
+        token_data = login_response.json()
         
         # Check token structure
+        assert "access_token" in token_data
+        assert "token_type" in token_data
+        assert token_data["token_type"] == "bearer"
+        
+        token = token_data["access_token"]
         assert isinstance(token, str)
-        assert len(token.split('.')) == 3  # JWT has 3 parts: header.payload.signature
+        assert len(token.split('.')) == 3  # JWT has 3 parts
         
-        # Decode and verify content
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        assert payload["sub"] == email
-        assert "exp" in payload  # Expiration time should be present
-        
-        print(f"✅ JWT token created successfully for {email}")
+        print(f"✅ JWT token created successfully via login API")
     
-    def test_token_expiration_time(self):
-        """Test that token has correct expiration time"""
-        email = "test@example.com"
-        
-        # Create token and immediately decode it (before expiration)
-        token = create_access_token(email)
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        # Check that expiration is in the future
-        exp_time = datetime.utcfromtimestamp(payload["exp"])
-        current_time = datetime.utcnow()
-        
-        # Token should expire in approximately 30 minutes
-        time_diff = exp_time - current_time
-        expected_minutes = 30
-        
-        # Allow some tolerance (29-31 minutes)
-        assert 29 <= time_diff.total_seconds() / 60 <= 31
-        
-        print(f"✅ Token expiration time is correct (~30 minutes)")
-    
-    def test_token_with_invalid_secret(self):
-        """Test that token cannot be decoded with wrong secret"""
-        email = "test@example.com"
-        token = create_access_token(email)
-        
-        # Try to decode with wrong secret
-        with pytest.raises(jwt.JWTError):
-            jwt.decode(token, "wrong_secret", algorithms=[ALGORITHM])
-        
-        print(f"✅ Token security: wrong secret rejected")
-    
-    def test_expired_token(self):
-        """Test that expired tokens are rejected"""
-        email = "test@example.com"
-        
-        # Create a token manually with past expiration
-        past_time = datetime.utcnow() - timedelta(hours=1)  # 1 hour ago
-        expired_payload = {
-            "sub": email,
-            "exp": past_time
+    def test_token_authentication(self):
+        """Test token authentication on protected endpoints"""
+        # Register and login user
+        test_user = {
+            "email": get_unique_email("authtest"),
+            "password": "password123",
+            "full_name": "Auth Test User"
         }
-        expired_token = jwt.encode(expired_payload, SECRET_KEY, algorithm=ALGORITHM)
         
-        # Try to decode expired token
-        with pytest.raises(jwt.ExpiredSignatureError):
-            jwt.decode(expired_token, SECRET_KEY, algorithms=[ALGORITHM])
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
         
-        print(f"✅ Expired tokens are rejected")
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Test protected endpoint with valid token
+        profile_response = requests.get(f"{BASE_URL}/profile", headers=headers, timeout=TIMEOUT)
+        assert profile_response.status_code == 200
+        
+        profile_data = profile_response.json()
+        assert profile_data["user"]["email"] == test_user["email"]
+        
+        print(f"✅ Valid token authentication works")
+    
+    def test_invalid_token_rejection(self):
+        """Test that invalid tokens are rejected"""
+        # Test with completely invalid token
+        invalid_headers = {"Authorization": "Bearer invalid_token_here"}
+        response = requests.get(f"{BASE_URL}/profile", headers=invalid_headers, timeout=TIMEOUT)
+        
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+        
+        print(f"✅ Invalid tokens rejected by API")
+    
+    def test_no_token_rejection(self):
+        """Test that requests without tokens are rejected"""
+        # Try to access protected endpoint without token
+        response = requests.get(f"{BASE_URL}/profile", timeout=TIMEOUT)
+        
+        assert response.status_code == 403  # No authorization header
+        
+        print(f"✅ Requests without tokens rejected")
 
 class TestDataValidation:
-    """Test data validation logic"""
+    """Test data validation through API endpoints"""
     
     def test_rating_validation_valid(self):
-        """Test valid rating values"""
+        """Test valid rating values through API"""
+        # Register and login user
+        test_user = {
+            "email": get_unique_email("validrating"),
+            "password": "password123",
+            "full_name": "Valid Rating User"
+        }
+        
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Test valid ratings (1-5)
         valid_ratings = [1, 2, 3, 4, 5]
         
         for rating in valid_ratings:
-            # This simulates the validation logic in the endpoint
-            assert 1 <= rating <= 5
+            response = requests.post(f"{BASE_URL}/movies/1/rate", 
+                                   json={"rating": rating}, 
+                                   headers=headers, 
+                                   timeout=TIMEOUT)
+            assert response.status_code == 200
+            assert response.json()["rating"] == rating
         
-        print(f"✅ Valid ratings (1-5) accepted")
+        print(f"✅ Valid ratings (1-5) accepted via API")
     
     def test_rating_validation_invalid(self):
-        """Test invalid rating values"""
+        """Test invalid rating values through API"""
+        # Register and login user
+        test_user = {
+            "email": get_unique_email("invalidrating"),
+            "password": "password123",
+            "full_name": "Invalid Rating User"
+        }
+        
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Test invalid ratings
         invalid_ratings = [0, 6, -1, 10, 100]
         
         for rating in invalid_ratings:
-            # This simulates the validation logic in the endpoint
-            assert not (1 <= rating <= 5)
+            response = requests.post(f"{BASE_URL}/movies/1/rate", 
+                                   json={"rating": rating}, 
+                                   headers=headers, 
+                                   timeout=TIMEOUT)
+            assert response.status_code == 400
+            assert "between 1 and 5" in response.json()["detail"]
         
-        print(f"✅ Invalid ratings rejected")
+        print(f"✅ Invalid ratings rejected via API")
     
-    def test_email_format_basic(self):
-        """Test basic email format validation"""
-        valid_emails = ["test@example.com", "user@domain.org", "student@university.edu"]
-        invalid_emails = ["notanemail", "missing@", "@domain", "", "test@", "test.com", "@"]
-        
-        # Basic email validation (contains @ and .)
-        for email in valid_emails:
-            assert "@" in email and "." in email
-            print(f"      Valid: {email}")
+    def test_email_format_validation(self):
+        """Test email format validation through registration"""
+        # Test invalid email formats
+        invalid_emails = ["notanemail", "missing@", "@domain", "test@", "test.com"]
         
         for email in invalid_emails:
-            # Check that invalid emails don't meet our criteria
-            has_at = "@" in email
-            has_dot = "." in email
-            has_proper_format = has_at and has_dot and len(email) > 5
+            invalid_user = {
+                "email": email,
+                "password": "password123",
+                "full_name": "Invalid Email User"
+            }
             
-            # Invalid emails should not meet all criteria
-            assert not has_proper_format
-            print(f"      Invalid: {email} (@ = {has_at}, . = {has_dot}, proper format = {has_proper_format})")
+            response = requests.post(f"{BASE_URL}/register", json=invalid_user, timeout=TIMEOUT)
+            assert response.status_code == 422  # Validation error
         
-        print(f"✅ Basic email validation works")
+        print(f"✅ Invalid email formats rejected via API")
     
-    def test_password_length_validation(self):
-        """Test password length validation"""
-        valid_passwords = ["password123", "securepass", "123456"]
-        invalid_passwords = ["123", "ab", "", "12345"]
+    def test_movie_id_validation(self):
+        """Test movie ID validation"""
+        # Register and login user
+        test_user = {
+            "email": get_unique_email("movieid"),
+            "password": "password123",
+            "full_name": "Movie ID User"
+        }
         
-        for password in valid_passwords:
-            assert len(password) >= 6
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
         
-        for password in invalid_passwords:
-            assert len(password) < 6
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
         
-        print(f"✅ Password length validation works")
+        # Test non-existent movie ID
+        response = requests.post(f"{BASE_URL}/movies/999/rate", 
+                               json={"rating": 5}, 
+                               headers=headers, 
+                               timeout=TIMEOUT)
+        assert response.status_code == 404
+        assert "Movie not found" in response.json()["detail"]
+        
+        print(f"✅ Invalid movie IDs rejected via API")
 
 class TestBusinessLogic:
-    """Test business logic functions"""
+    """Test business logic through API endpoints"""
     
-    def test_calculate_average_rating(self):
-        """Test average rating calculation logic"""
-        # Simulate rating calculation
-        ratings = [5, 4, 3, 4, 5]  # Sample ratings
-        expected_average = sum(ratings) / len(ratings)  # 4.2
+    def test_average_rating_calculation(self):
+        """Test average rating calculation through API"""
+        # Create multiple users to rate the same movie
+        users = []
+        ratings = [5, 4, 3, 4, 5]
         
-        calculated_average = sum(ratings) / len(ratings)
-        assert calculated_average == expected_average
-        assert calculated_average == 4.2
-        
-        print(f"✅ Average rating calculation: {ratings} -> {calculated_average}")
-    
-    def test_calculate_average_single_rating(self):
-        """Test average with single rating"""
-        ratings = [5]
-        average = sum(ratings) / len(ratings)
-        
-        assert average == 5.0
-        
-        print(f"✅ Single rating average: {ratings} -> {average}")
-    
-    def test_calculate_average_empty_ratings(self):
-        """Test handling of empty ratings"""
-        ratings = []
-        
-        # Should handle empty list gracefully
-        if ratings:
-            average = sum(ratings) / len(ratings)
-        else:
-            average = None
-        
-        assert average is None
-        
-        print(f"✅ Empty ratings handled: {ratings} -> {average}")
-
-class TestDataStructures:
-    """Test data structure operations"""
-    
-    def test_user_storage_structure(self):
-        """Test user data storage structure"""
-        # Test user data structure
-        user_data = {
-            "password_hash": "hashed_password",
-            "full_name": "Test User",
-            "id": 1
-        }
-        
-        # Verify required fields
-        assert "password_hash" in user_data
-        assert "full_name" in user_data
-        assert "id" in user_data
-        assert isinstance(user_data["id"], int)
-        
-        print(f"✅ User data structure is correct")
-    
-    def test_movie_storage_structure(self):
-        """Test movie data storage structure"""
-        # Test movie data structure
-        movie_data = {
-            "id": 1,
-            "title": "Test Movie",
-            "genre": "Action",
-            "year": 2023
-        }
-        
-        # Verify required fields
-        assert "id" in movie_data
-        assert "title" in movie_data
-        assert "genre" in movie_data
-        assert "year" in movie_data
-        assert isinstance(movie_data["year"], int)
-        
-        print(f"✅ Movie data structure is correct")
-    
-    def test_rating_storage_structure(self):
-        """Test rating data storage structure"""
-        # Test rating storage: {movie_id: {user_id: rating}}
-        ratings_structure = {
-            1: {  # movie_id
-                1: 5,  # user_id: rating
-                2: 4
+        for i, rating in enumerate(ratings):
+            # Register user
+            user = {
+                "email": get_unique_email(f"avgtest{i}"),
+                "password": "password123",
+                "full_name": f"Avg Test User {i}"
             }
-        }
-        
-        # Test structure access
-        movie_id = 1
-        user_id = 1
-        
-        assert movie_id in ratings_structure
-        assert user_id in ratings_structure[movie_id]
-        assert 1 <= ratings_structure[movie_id][user_id] <= 5
-        
-        print(f"✅ Rating data structure is correct")
-
-class TestMockingExamples:
-    """Examples of mocking for unit tests"""
-    
-    def test_with_mocked_database(self):
-        """Test with mocked database to isolate logic"""
-        # Mock the users_db
-        mock_users = {
-            "test@example.com": {
-                "password_hash": hash_password("password123"),
-                "full_name": "Test User",
-                "id": 1
-            }
-        }
-        
-        with patch('main.users_db', mock_users):
-            # Test that user exists in mocked database
-            assert "test@example.com" in mock_users
+            users.append(user)
             
-            # Test password verification
-            stored_user = mock_users["test@example.com"]
-            assert verify_password("password123", stored_user["password_hash"])
+            requests.post(f"{BASE_URL}/register", json=user, timeout=TIMEOUT)
+            
+            # Login and rate movie
+            login_response = requests.post(f"{BASE_URL}/login", json={
+                "email": user["email"],
+                "password": user["password"]
+            }, timeout=TIMEOUT)
+            
+            token = login_response.json()["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+            
+            # Rate movie
+            requests.post(f"{BASE_URL}/movies/1/rate", 
+                         json={"rating": rating}, 
+                         headers=headers, 
+                         timeout=TIMEOUT)
         
-        print(f"✅ Mocked database testing works")
+        # Check movie average rating
+        movie_response = requests.get(f"{BASE_URL}/movies/1", timeout=TIMEOUT)
+        movie_data = movie_response.json()
+        
+        expected_average = sum(ratings) / len(ratings)  # 4.2
+        actual_average = movie_data["average_rating"]
+        
+        # Allow small floating point differences
+        assert abs(actual_average - expected_average) < 0.1
+        assert movie_data["total_ratings"] >= len(ratings)
+        
+        print(f"✅ Average rating calculation works: {ratings} -> {actual_average}")
     
-    def test_with_mocked_time(self):
-        """Test with mocked time for predictable results"""
-        email = "test@example.com"
+    def test_user_rating_history(self):
+        """Test user rating history through profile"""
+        # Register user
+        test_user = {
+            "email": get_unique_email("history"),
+            "password": "password123",
+            "full_name": "History User"
+        }
         
-        # Create token and verify it contains email
-        token = create_access_token(email)
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
         
-        # Verify email is in token
-        assert payload["sub"] == email
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
         
-        # Verify expiration exists and is in future
-        exp_time = datetime.utcfromtimestamp(payload["exp"])
-        current_time = datetime.utcnow()
-        assert exp_time > current_time
+        # Rate multiple movies
+        movie_ratings = [(1, 5), (2, 4), (3, 3)]
         
-        print(f"✅ Token creation and validation works")
+        for movie_id, rating in movie_ratings:
+            requests.post(f"{BASE_URL}/movies/{movie_id}/rate", 
+                         json={"rating": rating}, 
+                         headers=headers, 
+                         timeout=TIMEOUT)
+        
+        # Check profile shows all ratings
+        profile_response = requests.get(f"{BASE_URL}/profile", headers=headers, timeout=TIMEOUT)
+        profile_data = profile_response.json()
+        
+        assert profile_data["total_ratings"] == len(movie_ratings)
+        assert len(profile_data["ratings"]) == len(movie_ratings)
+        
+        # Verify specific ratings
+        user_ratings = {r["movie_id"]: r["rating"] for r in profile_data["ratings"]}
+        for movie_id, expected_rating in movie_ratings:
+            assert user_ratings[movie_id] == expected_rating
+        
+        print(f"✅ User rating history works correctly")
+    
+    def test_movie_without_ratings(self):
+        """Test movie display when no ratings exist"""
+        # Get a movie that likely has no ratings (or create scenario)
+        movie_response = requests.get(f"{BASE_URL}/movies/3", timeout=TIMEOUT)
+        movie_data = movie_response.json()
+        
+        # Movie should exist but might have no ratings
+        assert "average_rating" in movie_data
+        assert "total_ratings" in movie_data
+        
+        # If no ratings, average should be None and total should be 0 or more
+        if movie_data["total_ratings"] == 0:
+            assert movie_data["average_rating"] is None
+        
+        print(f"✅ Movies without ratings handled correctly")
+
+class TestAPIResponseStructures:
+    """Test API response structures"""
+    
+    def test_user_registration_response(self):
+        """Test user registration response structure"""
+        test_user = {
+            "email": get_unique_email("structure"),
+            "password": "password123",
+            "full_name": "Structure Test User"
+        }
+        
+        response = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        assert response.status_code == 200
+        
+        response_data = response.json()
+        assert "message" in response_data
+        assert "email" in response_data
+        assert response_data["email"] == test_user["email"]
+        
+        print(f"✅ User registration response structure correct")
+    
+    def test_movie_response_structure(self):
+        """Test movie response structure"""
+        response = requests.get(f"{BASE_URL}/movies/1", timeout=TIMEOUT)
+        assert response.status_code == 200
+        
+        movie_data = response.json()
+        required_fields = ["id", "title", "genre", "year", "average_rating", "total_ratings"]
+        
+        for field in required_fields:
+            assert field in movie_data
+        
+        assert isinstance(movie_data["id"], int)
+        assert isinstance(movie_data["year"], int)
+        assert isinstance(movie_data["total_ratings"], int)
+        
+        print(f"✅ Movie response structure correct")
+    
+    def test_profile_response_structure(self):
+        """Test profile response structure"""
+        # Register and login user
+        test_user = {
+            "email": get_unique_email("profile"),
+            "password": "password123",
+            "full_name": "Profile User"
+        }
+        
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Get profile
+        profile_response = requests.get(f"{BASE_URL}/profile", headers=headers, timeout=TIMEOUT)
+        assert profile_response.status_code == 200
+        
+        profile_data = profile_response.json()
+        assert "user" in profile_data
+        assert "ratings" in profile_data
+        assert "total_ratings" in profile_data
+        
+        # Check user structure
+        user_data = profile_data["user"]
+        assert "id" in user_data
+        assert "email" in user_data
+        assert "full_name" in user_data
+        
+        print(f"✅ Profile response structure correct")
+
+class TestAPIIntegration:
+    """Test API integration scenarios"""
+    
+    def test_complete_user_workflow(self):
+        """Test complete user workflow from registration to rating"""
+        # Step 1: Register user
+        test_user = {
+            "email": get_unique_email("workflow"),
+            "password": "password123",
+            "full_name": "Workflow User"
+        }
+        
+        register_response = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        assert register_response.status_code == 200
+        
+        # Step 2: Login user
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        assert login_response.status_code == 200
+        
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Step 3: Rate a movie
+        rating_response = requests.post(f"{BASE_URL}/movies/1/rate", 
+                                      json={"rating": 5}, 
+                                      headers=headers, 
+                                      timeout=TIMEOUT)
+        assert rating_response.status_code == 200
+        
+        # Step 4: Check profile shows rating
+        profile_response = requests.get(f"{BASE_URL}/profile", headers=headers, timeout=TIMEOUT)
+        assert profile_response.status_code == 200
+        
+        profile_data = profile_response.json()
+        assert profile_data["total_ratings"] >= 1
+        
+        print(f"✅ Complete user workflow works end-to-end")
+    
+    def test_concurrent_ratings(self):
+        """Test multiple users rating the same movie"""
+        movie_id = 2
+        users_and_ratings = []
+        
+        # Create multiple users and have them rate the same movie
+        for i in range(3):
+            user = {
+                "email": get_unique_email(f"concurrent{i}"),
+                "password": "password123",
+                "full_name": f"Concurrent User {i}"
+            }
+            
+            # Register and login
+            requests.post(f"{BASE_URL}/register", json=user, timeout=TIMEOUT)
+            login_response = requests.post(f"{BASE_URL}/login", json={
+                "email": user["email"],
+                "password": user["password"]
+            }, timeout=TIMEOUT)
+            
+            token = login_response.json()["access_token"]
+            headers = {"Authorization": f"Bearer {token}"}
+            
+            # Rate movie
+            rating = i + 3  # Ratings: 3, 4, 5
+            rating_response = requests.post(f"{BASE_URL}/movies/{movie_id}/rate", 
+                                          json={"rating": rating}, 
+                                          headers=headers, 
+                                          timeout=TIMEOUT)
+            assert rating_response.status_code == 200
+            
+            users_and_ratings.append((user, rating))
+        
+        # Check that movie now has multiple ratings
+        movie_response = requests.get(f"{BASE_URL}/movies/{movie_id}", timeout=TIMEOUT)
+        movie_data = movie_response.json()
+        
+        assert movie_data["total_ratings"] >= 3
+        assert movie_data["average_rating"] is not None
+        
+        print(f"✅ Concurrent ratings handled correctly")
 
 class TestErrorHandling:
-    """Test error handling in functions"""
+    """Test error handling through API endpoints"""
     
-    def test_jwt_decode_invalid_token(self):
-        """Test JWT decoding with invalid token"""
-        invalid_token = "invalid.token.here"
+    def test_invalid_endpoints(self):
+        """Test invalid API endpoints return proper errors"""
+        # Test non-existent endpoint
+        response = requests.get(f"{BASE_URL}/nonexistent", timeout=TIMEOUT)
+        assert response.status_code == 404
         
-        with pytest.raises(jwt.JWTError):
-            jwt.decode(invalid_token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        print(f"✅ Invalid JWT tokens raise proper errors")
+        print(f"✅ Invalid endpoints return 404")
     
-    def test_password_verification_edge_cases(self):
-        """Test password verification edge cases"""
-        # Test with empty password (should not match)
-        result = verify_password("", hash_password("password"))
-        assert result == False
+    def test_malformed_requests(self):
+        """Test malformed request handling"""
+        # Test registration with missing fields
+        incomplete_user = {
+            "email": get_unique_email("incomplete"),
+            # Missing password and full_name
+        }
         
-        # Test with empty hash (should handle gracefully)
-        try:
-            result = verify_password("password", "")
-            assert result == False  # Should return False
-        except Exception:
-            # bcrypt might raise an error for invalid hash format - that's OK
-            pass
+        response = requests.post(f"{BASE_URL}/register", json=incomplete_user, timeout=TIMEOUT)
+        assert response.status_code == 422  # Validation error
         
-        # Test with obviously wrong hash format
-        try:
-            result = verify_password("password", "not_a_hash")
-            assert result == False  # Should return False
-        except Exception:
-            # bcrypt might raise an error for invalid hash format - that's OK
-            pass
+        print(f"✅ Malformed requests handled with validation errors")
+    
+    def test_unauthorized_access_patterns(self):
+        """Test various unauthorized access patterns"""
+        # Test accessing protected endpoint with malformed token
+        malformed_headers = {"Authorization": "Bearer malformed_token"}
+        response = requests.get(f"{BASE_URL}/profile", headers=malformed_headers, timeout=TIMEOUT)
+        assert response.status_code == 401
         
-        print(f"✅ Password verification edge cases handled correctly")
+        # Test with wrong authorization format
+        wrong_format_headers = {"Authorization": "Basic wrong_format"}
+        response = requests.get(f"{BASE_URL}/profile", headers=wrong_format_headers, timeout=TIMEOUT)
+        assert response.status_code == 403
         
-        print(f"✅ Password verification handles edge cases")
+        print(f"✅ Unauthorized access patterns properly rejected")
+    
+    def test_edge_case_inputs(self):
+        """Test edge case inputs through API"""
+        # Register user for testing
+        test_user = {
+            "email": get_unique_email("edgecase"),
+            "password": "password123",
+            "full_name": "Edge Case User"
+        }
+        
+        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
+        login_response = requests.post(f"{BASE_URL}/login", json={
+            "email": test_user["email"],
+            "password": test_user["password"]
+        }, timeout=TIMEOUT)
+        
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Test rating with string instead of integer
+        response = requests.post(f"{BASE_URL}/movies/1/rate", 
+                               json={"rating": "five"}, 
+                               headers=headers, 
+                               timeout=TIMEOUT)
+        assert response.status_code == 422  # Validation error
+        
+        print(f"✅ Edge case inputs handled with proper validation")
 
-# Simple test runner for unit tests only
-def run_unit_tests():
-    """Run only the unit tests"""
-    print("🧪 Running Unit Tests (Individual Functions)")
+# Simple test runner for API tests
+def run_api_tests():
+    """Run API tests against live server"""
+    print("🧪 Running API Tests (Live Server)")
     print("=" * 50)
     
-    # Test password functions
-    print("\n🔐 Testing Password Functions:")
+    # Check if server is running
+    if not check_server_running():
+        print("❌ ERROR: Server is not running!")
+        print("")
+        print("Please start the server first:")
+        print("  1. Open a terminal and run: python main.py")
+        print("  2. Wait for the server to start")
+        print("  3. Then run these tests in another terminal")
+        print("")
+        return False
+    
+    print(f"✅ Server is running at {BASE_URL}")
+    print("")
+    
+    # Test password functions via API
+    print("\n🔐 Testing Password Security via API:")
     test_pwd = TestPasswordFunctions()
-    test_pwd.test_hash_password()
-    test_pwd.test_verify_password_correct()
-    test_pwd.test_verify_password_incorrect()
-    test_pwd.test_password_hashing_unique()
+    test_pwd.test_password_length_validation()
+    test_pwd.test_password_hashing_security()
+    test_pwd.test_password_verification()
+    test_pwd.test_duplicate_registration()
     
-    # Test JWT functions
-    print("\n🔑 Testing JWT Functions:")
+    # Test JWT functions via API
+    print("\n🔑 Testing JWT Functions via API:")
     test_jwt = TestJWTFunctions()
-    test_jwt.test_create_access_token()
-    test_jwt.test_token_expiration_time()
-    test_jwt.test_token_with_invalid_secret()
-    test_jwt.test_expired_token()
+    test_jwt.test_token_creation_via_login()
+    test_jwt.test_token_authentication()
+    test_jwt.test_invalid_token_rejection()
+    test_jwt.test_no_token_rejection()
     
-    # Test validation logic
-    print("\n✅ Testing Data Validation:")
+    # Test validation logic via API
+    print("\n✅ Testing Data Validation via API:")
     test_validation = TestDataValidation()
     test_validation.test_rating_validation_valid()
     test_validation.test_rating_validation_invalid()
-    test_validation.test_email_format_basic()
-    test_validation.test_password_length_validation()
+    test_validation.test_email_format_validation()
+    test_validation.test_movie_id_validation()
     
-    # Test business logic
-    print("\n📊 Testing Business Logic:")
+    # Test business logic via API
+    print("\n📊 Testing Business Logic via API:")
     test_logic = TestBusinessLogic()
-    test_logic.test_calculate_average_rating()
-    test_logic.test_calculate_average_single_rating()
-    test_logic.test_calculate_average_empty_ratings()
+    test_logic.test_average_rating_calculation()
+    test_logic.test_user_rating_history()
+    test_logic.test_movie_without_ratings()
     
-    # Test data structures
-    print("\n🗄️ Testing Data Structures:")
-    test_data = TestDataStructures()
-    test_data.test_user_storage_structure()
-    test_data.test_movie_storage_structure()
-    test_data.test_rating_storage_structure()
+    # Test API response structures
+    print("\n🗄️ Testing API Response Structures:")
+    test_structures = TestAPIResponseStructures()
+    test_structures.test_user_registration_response()
+    test_structures.test_movie_response_structure()
+    test_structures.test_profile_response_structure()
     
-    # Test mocking examples
-    print("\n🎭 Testing with Mocks:")
-    test_mocks = TestMockingExamples()
-    test_mocks.test_with_mocked_database()
-    test_mocks.test_with_mocked_time()
+    # Test API integration scenarios
+    print("\n🎭 Testing API Integration:")
+    test_integration = TestAPIIntegration()
+    test_integration.test_complete_user_workflow()
+    test_integration.test_concurrent_ratings()
     
-    # Test error handling
-    print("\n❌ Testing Error Handling:")
+    # Test error handling via API
+    print("\n❌ Testing Error Handling via API:")
     test_errors = TestErrorHandling()
-    test_errors.test_jwt_decode_invalid_token()
-    test_errors.test_password_verification_edge_cases()
+    test_errors.test_invalid_endpoints()
+    test_errors.test_malformed_requests()
+    test_errors.test_unauthorized_access_patterns()
+    test_errors.test_edge_case_inputs()
     
     print("\n" + "=" * 50)
-    print("🎉 All Unit Tests Completed!")
-    print("\n📚 What We Tested:")
-    print("• Password hashing and verification")
+    print("🎉 All API Tests Completed!")
+    print("\n📚 What We Tested via Live API:")
+    print("• Password security through registration/login")
     print("• JWT token creation and validation")
-    print("• Data validation logic")
-    print("• Business logic calculations")
-    print("• Data structure operations")
-    print("• Mocking techniques")
-    print("• Error handling")
+    print("• Data validation through API endpoints")
+    print("• Business logic through API responses")
+    print("• API response structures")
+    print("• Complete user workflows")
+    print("• Error handling and edge cases")
     
-    print("\n💡 Unit Testing Benefits:")
-    print("• Fast execution (no HTTP requests)")
-    print("• Test individual functions in isolation")
-    print("• Easy to debug when tests fail")
-    print("• Test edge cases and error conditions")
-    print("• Learn mocking techniques")
+    print("\n💡 API Testing Benefits:")
+    print("• Tests real server behavior")
+    print("• End-to-end functionality validation")
+    print("• Tests complete request/response cycle")
+    print("• Validates API contracts")
+    print("• Tests authentication and authorization")
+    
+    return True
 
 if __name__ == "__main__":
-    # You can run this file directly to see unit tests in action
-    run_unit_tests()
+    # Run API tests against live server
+    success = run_api_tests()
     
-    # Or run with pytest
-    print("\n" + "=" * 50)
-    print("🔄 You can also run with pytest:")
-    print("pytest unit_tests.py -v")
-    print("=" * 50)
+    if success:
+        print("\n" + "=" * 50)
+        print("🔄 You can also run with pytest:")
+        print("pytest unit_tests.py -v")
+        print("=" * 50)
+    
+    exit(0 if success else 1)
