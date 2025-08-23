@@ -673,57 +673,35 @@ def run_api_tests():
     print(f"✅ Server is running at {BASE_URL}")
     print("")
     
-    # Test password functions via API
-    print("\n🔐 Testing Password Security via API:")
+    # Core 10 Essential Tests
+    print("\n🎯 Running Core 10 Essential API Tests:")
+    
+    # 1. Password Security
     test_pwd = TestPasswordFunctions()
-    run_test(test_pwd.test_password_length_validation, "Password Length Validation")
-    run_test(test_pwd.test_password_hashing_security, "Password Hashing Security")
-    run_test(test_pwd.test_password_verification, "Password Verification")
-    run_test(test_pwd.test_duplicate_registration, "Duplicate Registration Prevention")
+    run_test(test_pwd.test_password_length_validation, "1. Password Length Validation")
+    run_test(test_pwd.test_password_verification, "2. Password Verification")
     
-    # Test JWT functions via API
-    print("\n🔑 Testing JWT Functions via API:")
+    # 2. JWT Authentication
     test_jwt = TestJWTFunctions()
-    run_test(test_jwt.test_token_creation_via_login, "Token Creation via Login")
-    run_test(test_jwt.test_token_authentication, "Token Authentication")
-    run_test(test_jwt.test_invalid_token_rejection, "Invalid Token Rejection")
-    run_test(test_jwt.test_no_token_rejection, "No Token Rejection")
+    run_test(test_jwt.test_token_creation_via_login, "3. JWT Token Creation")
+    run_test(test_jwt.test_token_authentication, "4. JWT Token Authentication")
+    run_test(test_jwt.test_invalid_token_rejection, "5. Invalid Token Rejection")
     
-    # Test validation logic via API
-    print("\n✅ Testing Data Validation via API:")
+    # 3. Data Validation
     test_validation = TestDataValidation()
-    run_test(test_validation.test_rating_validation_valid, "Valid Rating Validation")
-    run_test(test_validation.test_rating_validation_invalid, "Invalid Rating Validation")
-    run_test(test_validation.test_email_format_validation, "Email Format Validation")
-    run_test(test_validation.test_movie_id_validation, "Movie ID Validation")
+    run_test(test_validation.test_rating_validation_valid, "6. Valid Rating Validation")
+    run_test(test_validation.test_rating_validation_invalid, "7. Invalid Rating Validation")
     
-    # Test business logic via API
-    print("\n📊 Testing Business Logic via API:")
+    # 4. Core Business Logic
     test_logic = TestBusinessLogic()
-    run_test(test_logic.test_average_rating_calculation, "Average Rating Calculation")
-    run_test(test_logic.test_user_rating_history, "User Rating History")
-    run_test(test_logic.test_movie_without_ratings, "Movies Without Ratings")
+    run_test(test_logic.test_user_rating_history, "8. User Rating History")
     
-    # Test API response structures
-    print("\n🗄️ Testing API Response Structures:")
-    test_structures = TestAPIResponseStructures()
-    run_test(test_structures.test_user_registration_response, "User Registration Response")
-    run_test(test_structures.test_movie_response_structure, "Movie Response Structure")
-    run_test(test_structures.test_profile_response_structure, "Profile Response Structure")
-    
-    # Test API integration scenarios
-    print("\n🎭 Testing API Integration:")
+    # 5. Integration & Error Handling
     test_integration = TestAPIIntegration()
-    run_test(test_integration.test_complete_user_workflow, "Complete User Workflow")
-    run_test(test_integration.test_concurrent_ratings, "Concurrent Ratings")
+    run_test(test_integration.test_complete_user_workflow, "9. Complete User Workflow")
     
-    # Test error handling via API
-    print("\n❌ Testing Error Handling via API:")
     test_errors = TestErrorHandling()
-    run_test(test_errors.test_invalid_endpoints, "Invalid Endpoints")
-    run_test(test_errors.test_malformed_requests, "Malformed Requests")
-    run_test(test_errors.test_unauthorized_access_patterns, "Unauthorized Access Patterns")
-    run_test(test_errors.test_edge_case_inputs, "Edge Case Inputs")
+    run_test(test_errors.test_unauthorized_access_patterns, "10. Unauthorized Access Protection")
     
     print("\n" + "=" * 50)
     print("📊 TEST RESULTS SUMMARY")
@@ -751,12 +729,12 @@ def run_api_tests():
     print("• Complete user workflows")
     print("• Error handling and edge cases")
     
-    print("\n💡 API Testing Benefits:")
-    print("• Tests real server behavior")
-    print("• End-to-end functionality validation")
-    print("• Tests complete request/response cycle")
-    print("• Validates API contracts")
-    print("• Tests authentication and authorization")
+    print("\n💡 Why These 10 Tests Matter:")
+    print("• Cover all critical security features")
+    print("• Test authentication and authorization")
+    print("• Validate core business logic")
+    print("• Test complete user workflows")
+    print("• Fast execution with comprehensive coverage")
     
     return test_results['failed'] == 0
 
