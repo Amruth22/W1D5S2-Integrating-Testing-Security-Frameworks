@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from jose import jwt
 
 # Configuration for live server testing
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8080"
 TIMEOUT = 30  # seconds
 
 def check_server_running():
