@@ -632,9 +632,30 @@ class TestErrorHandling:
         
         print(f"✅ Edge case inputs handled with proper validation")
 
+# Test result tracking
+test_results = {"passed": 0, "failed": 0, "total": 0}
+
+def run_test(test_func, test_name):
+    """Run a single test and track results"""
+    global test_results
+    test_results["total"] += 1
+    
+    try:
+        test_func()
+        test_results["passed"] += 1
+        print(f"  ✅ {test_name} - PASSED")
+        return True
+    except Exception as e:
+        test_results["failed"] += 1
+        print(f"  ❌ {test_name} - FAILED: {str(e)}")
+        return False
+
 # Simple test runner for API tests
 def run_api_tests():
     """Run API tests against live server"""
+    global test_results
+    test_results = {"passed": 0, "failed": 0, "total": 0}
+    
     print("🧪 Running API Tests (Live Server)")
     print("=" * 50)
     
@@ -655,58 +676,73 @@ def run_api_tests():
     # Test password functions via API
     print("\n🔐 Testing Password Security via API:")
     test_pwd = TestPasswordFunctions()
-    test_pwd.test_password_length_validation()
-    test_pwd.test_password_hashing_security()
-    test_pwd.test_password_verification()
-    test_pwd.test_duplicate_registration()
+    run_test(test_pwd.test_password_length_validation, "Password Length Validation")
+    run_test(test_pwd.test_password_hashing_security, "Password Hashing Security")
+    run_test(test_pwd.test_password_verification, "Password Verification")
+    run_test(test_pwd.test_duplicate_registration, "Duplicate Registration Prevention")
     
     # Test JWT functions via API
     print("\n🔑 Testing JWT Functions via API:")
     test_jwt = TestJWTFunctions()
-    test_jwt.test_token_creation_via_login()
-    test_jwt.test_token_authentication()
-    test_jwt.test_invalid_token_rejection()
-    test_jwt.test_no_token_rejection()
+    run_test(test_jwt.test_token_creation_via_login, "Token Creation via Login")
+    run_test(test_jwt.test_token_authentication, "Token Authentication")
+    run_test(test_jwt.test_invalid_token_rejection, "Invalid Token Rejection")
+    run_test(test_jwt.test_no_token_rejection, "No Token Rejection")
     
     # Test validation logic via API
     print("\n✅ Testing Data Validation via API:")
     test_validation = TestDataValidation()
-    test_validation.test_rating_validation_valid()
-    test_validation.test_rating_validation_invalid()
-    test_validation.test_email_format_validation()
-    test_validation.test_movie_id_validation()
+    run_test(test_validation.test_rating_validation_valid, "Valid Rating Validation")
+    run_test(test_validation.test_rating_validation_invalid, "Invalid Rating Validation")
+    run_test(test_validation.test_email_format_validation, "Email Format Validation")
+    run_test(test_validation.test_movie_id_validation, "Movie ID Validation")
     
     # Test business logic via API
     print("\n📊 Testing Business Logic via API:")
     test_logic = TestBusinessLogic()
-    test_logic.test_average_rating_calculation()
-    test_logic.test_user_rating_history()
-    test_logic.test_movie_without_ratings()
+    run_test(test_logic.test_average_rating_calculation, "Average Rating Calculation")
+    run_test(test_logic.test_user_rating_history, "User Rating History")
+    run_test(test_logic.test_movie_without_ratings, "Movies Without Ratings")
     
     # Test API response structures
     print("\n🗄️ Testing API Response Structures:")
     test_structures = TestAPIResponseStructures()
-    test_structures.test_user_registration_response()
-    test_structures.test_movie_response_structure()
-    test_structures.test_profile_response_structure()
+    run_test(test_structures.test_user_registration_response, "User Registration Response")
+    run_test(test_structures.test_movie_response_structure, "Movie Response Structure")
+    run_test(test_structures.test_profile_response_structure, "Profile Response Structure")
     
     # Test API integration scenarios
     print("\n🎭 Testing API Integration:")
     test_integration = TestAPIIntegration()
-    test_integration.test_complete_user_workflow()
-    test_integration.test_concurrent_ratings()
+    run_test(test_integration.test_complete_user_workflow, "Complete User Workflow")
+    run_test(test_integration.test_concurrent_ratings, "Concurrent Ratings")
     
     # Test error handling via API
     print("\n❌ Testing Error Handling via API:")
     test_errors = TestErrorHandling()
-    test_errors.test_invalid_endpoints()
-    test_errors.test_malformed_requests()
-    test_errors.test_unauthorized_access_patterns()
-    test_errors.test_edge_case_inputs()
+    run_test(test_errors.test_invalid_endpoints, "Invalid Endpoints")
+    run_test(test_errors.test_malformed_requests, "Malformed Requests")
+    run_test(test_errors.test_unauthorized_access_patterns, "Unauthorized Access Patterns")
+    run_test(test_errors.test_edge_case_inputs, "Edge Case Inputs")
     
     print("\n" + "=" * 50)
-    print("🎉 All API Tests Completed!")
-    print("\n📚 What We Tested via Live API:")
+    print("📊 TEST RESULTS SUMMARY")
+    print("=" * 50)
+    print(f"🎯 Total Tests: {test_results['total']}")
+    print(f"✅ Passed: {test_results['passed']}")
+    print(f"❌ Failed: {test_results['failed']}")
+    
+    if test_results['failed'] == 0:
+        print(f"\n🎉 ALL TESTS PASSED! ({test_results['passed']}/{test_results['total']})")
+        success_rate = 100.0
+    else:
+        success_rate = (test_results['passed'] / test_results['total']) * 100
+        print(f"\n⚠️  SOME TESTS FAILED ({test_results['passed']}/{test_results['total']})")
+    
+    print(f"📊 Success Rate: {success_rate:.1f}%")
+    
+    print("\n" + "=" * 50)
+    print("📚 What We Tested via Live API:")
     print("• Password security through registration/login")
     print("• JWT token creation and validation")
     print("• Data validation through API endpoints")
@@ -722,16 +758,20 @@ def run_api_tests():
     print("• Validates API contracts")
     print("• Tests authentication and authorization")
     
-    return True
+    return test_results['failed'] == 0
 
 if __name__ == "__main__":
     # Run API tests against live server
     success = run_api_tests()
     
+    print("\n" + "=" * 50)
     if success:
-        print("\n" + "=" * 50)
-        print("🔄 You can also run with pytest:")
-        print("pytest unit_tests.py -v")
-        print("=" * 50)
+        print("🎆 ALL TESTS SUCCESSFUL!")
+        print("🔄 You can also run with pytest: pytest unit_tests.py -v")
+    else:
+        print("⚠️  SOME TESTS FAILED!")
+        print("🔧 Check the error messages above for details")
+        print("🔄 You can also run with pytest for more details: pytest unit_tests.py -v")
+    print("=" * 50)
     
     exit(0 if success else 1)
