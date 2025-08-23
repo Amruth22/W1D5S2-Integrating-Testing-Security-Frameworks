@@ -43,7 +43,7 @@ class TestPasswordFunctions:
         assert response.status_code == 400
         assert "at least 6 characters" in response.json()["detail"]
         
-        print(f"✅ Short passwords rejected via API")
+        # Test passed - tracked by run_test function
     
     def test_password_hashing_security(self):
         """Test that passwords are hashed (not stored in plain text)"""
@@ -66,7 +66,7 @@ class TestPasswordFunctions:
         assert login_response.status_code == 200
         assert "access_token" in login_response.json()
         
-        print(f"✅ Password hashing works (login successful with correct password)")
+        # Test passed - tracked by run_test function
     
     def test_password_verification(self):
         """Test password verification through login"""
@@ -94,7 +94,7 @@ class TestPasswordFunctions:
         assert wrong_login.status_code == 401
         assert "Invalid email or password" in wrong_login.json()["detail"]
         
-        print(f"✅ Password verification works via API")
+        # Test passed - tracked by run_test function
     
     def test_duplicate_registration(self):
         """Test that duplicate emails are rejected"""
@@ -113,7 +113,7 @@ class TestPasswordFunctions:
         assert response2.status_code == 400
         assert "already registered" in response2.json()["detail"]
         
-        print(f"✅ Duplicate email registration prevented")
+        # Test passed - tracked by run_test function
 
 class TestJWTFunctions:
     """Test JWT token functionality through API endpoints"""
@@ -147,7 +147,7 @@ class TestJWTFunctions:
         assert isinstance(token, str)
         assert len(token.split('.')) == 3  # JWT has 3 parts
         
-        print(f"✅ JWT token created successfully via login API")
+        # Test passed - tracked by run_test function
     
     def test_token_authentication(self):
         """Test token authentication on protected endpoints"""
@@ -174,7 +174,7 @@ class TestJWTFunctions:
         profile_data = profile_response.json()
         assert profile_data["user"]["email"] == test_user["email"]
         
-        print(f"✅ Valid token authentication works")
+        # Test passed - tracked by run_test function
     
     def test_invalid_token_rejection(self):
         """Test that invalid tokens are rejected"""
@@ -185,7 +185,7 @@ class TestJWTFunctions:
         assert response.status_code == 401
         assert "Invalid token" in response.json()["detail"]
         
-        print(f"✅ Invalid tokens rejected by API")
+        # Test passed - tracked by run_test function
     
     def test_no_token_rejection(self):
         """Test that requests without tokens are rejected"""
@@ -194,7 +194,7 @@ class TestJWTFunctions:
         
         assert response.status_code == 403  # No authorization header
         
-        print(f"✅ Requests without tokens rejected")
+        # Test passed - tracked by run_test function
 
 class TestDataValidation:
     """Test data validation through API endpoints"""
@@ -228,7 +228,7 @@ class TestDataValidation:
             assert response.status_code == 200
             assert response.json()["rating"] == rating
         
-        print(f"✅ Valid ratings (1-5) accepted via API")
+        # Test passed - tracked by run_test function
     
     def test_rating_validation_invalid(self):
         """Test invalid rating values through API"""
@@ -259,7 +259,7 @@ class TestDataValidation:
             assert response.status_code == 400
             assert "between 1 and 5" in response.json()["detail"]
         
-        print(f"✅ Invalid ratings rejected via API")
+        # Test passed - tracked by run_test function
     
     def test_email_format_validation(self):
         """Test email format validation through registration"""
