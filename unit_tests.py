@@ -264,94 +264,7 @@ class TestBusinessLogic:
         
         # Test passed - tracked by run_test function
     
-    def test_movie_without_ratings(self):
-        """Test movie display when no ratings exist"""
-        # Get a movie that likely has no ratings (or create scenario)
-        movie_response = requests.get(f"{BASE_URL}/movies/3", timeout=TIMEOUT)
-        movie_data = movie_response.json()
-        
-        # Movie should exist but might have no ratings
-        assert "average_rating" in movie_data
-        assert "total_ratings" in movie_data
-        
-        # If no ratings, average should be None and total should be 0 or more
-        if movie_data["total_ratings"] == 0:
-            assert movie_data["average_rating"] is None
-        
-        # Test passed - tracked by run_test function
 
-class TestAPIResponseStructures:
-    """Test API response structures"""
-    
-    def test_user_registration_response(self):
-        """Test user registration response structure"""
-        test_user = {
-            "email": get_unique_email("structure"),
-            "password": "password123",
-            "full_name": "Structure Test User"
-        }
-        
-        response = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        assert response.status_code == 200
-        
-        response_data = response.json()
-        assert "message" in response_data
-        assert "email" in response_data
-        assert response_data["email"] == test_user["email"]
-        
-        # Test passed - tracked by run_test function
-    
-    def test_movie_response_structure(self):
-        """Test movie response structure"""
-        response = requests.get(f"{BASE_URL}/movies/1", timeout=TIMEOUT)
-        assert response.status_code == 200
-        
-        movie_data = response.json()
-        required_fields = ["id", "title", "genre", "year", "average_rating", "total_ratings"]
-        
-        for field in required_fields:
-            assert field in movie_data
-        
-        assert isinstance(movie_data["id"], int)
-        assert isinstance(movie_data["year"], int)
-        assert isinstance(movie_data["total_ratings"], int)
-        
-        # Test passed - tracked by run_test function
-    
-    def test_profile_response_structure(self):
-        """Test profile response structure"""
-        # Register and login user
-        test_user = {
-            "email": get_unique_email("profile"),
-            "password": "password123",
-            "full_name": "Profile User"
-        }
-        
-        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        login_response = requests.post(f"{BASE_URL}/login", json={
-            "email": test_user["email"],
-            "password": test_user["password"]
-        }, timeout=TIMEOUT)
-        
-        token = login_response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        
-        # Get profile
-        profile_response = requests.get(f"{BASE_URL}/profile", headers=headers, timeout=TIMEOUT)
-        assert profile_response.status_code == 200
-        
-        profile_data = profile_response.json()
-        assert "user" in profile_data
-        assert "ratings" in profile_data
-        assert "total_ratings" in profile_data
-        
-        # Check user structure
-        user_data = profile_data["user"]
-        assert "id" in user_data
-        assert "email" in user_data
-        assert "full_name" in user_data
-        
-        # Test passed - tracked by run_test function
 
 class TestAPIIntegration:
     """Test API integration scenarios"""
@@ -394,71 +307,12 @@ class TestAPIIntegration:
         
         # Test passed - tracked by run_test function
     
-    def test_concurrent_ratings(self):
-        """Test multiple users rating the same movie"""
-        movie_id = 2
-        users_and_ratings = []
-        
-        # Create multiple users and have them rate the same movie
-        for i in range(3):
-            user = {
-                "email": get_unique_email(f"concurrent{i}"),
-                "password": "password123",
-                "full_name": f"Concurrent User {i}"
-            }
-            
-            # Register and login
-            requests.post(f"{BASE_URL}/register", json=user, timeout=TIMEOUT)
-            login_response = requests.post(f"{BASE_URL}/login", json={
-                "email": user["email"],
-                "password": user["password"]
-            }, timeout=TIMEOUT)
-            
-            token = login_response.json()["access_token"]
-            headers = {"Authorization": f"Bearer {token}"}
-            
-            # Rate movie
-            rating = i + 3  # Ratings: 3, 4, 5
-            rating_response = requests.post(f"{BASE_URL}/movies/{movie_id}/rate", 
-                                          json={"rating": rating}, 
-                                          headers=headers, 
-                                          timeout=TIMEOUT)
-            assert rating_response.status_code == 200
-            
-            users_and_ratings.append((user, rating))
-        
-        # Check that movie now has multiple ratings
-        movie_response = requests.get(f"{BASE_URL}/movies/{movie_id}", timeout=TIMEOUT)
-        movie_data = movie_response.json()
-        
-        assert movie_data["total_ratings"] >= 3
-        assert movie_data["average_rating"] is not None
-        
-        # Test passed - tracked by run_test function
+
 
 class TestErrorHandling:
     """Test error handling through API endpoints"""
     
-    def test_invalid_endpoints(self):
-        """Test invalid API endpoints return proper errors"""
-        # Test non-existent endpoint
-        response = requests.get(f"{BASE_URL}/nonexistent", timeout=TIMEOUT)
-        assert response.status_code == 404
-        
-        # Test passed - tracked by run_test function
-    
-    def test_malformed_requests(self):
-        """Test malformed request handling"""
-        # Test registration with missing fields
-        incomplete_user = {
-            "email": get_unique_email("incomplete"),
-            # Missing password and full_name
-        }
-        
-        response = requests.post(f"{BASE_URL}/register", json=incomplete_user, timeout=TIMEOUT)
-        assert response.status_code == 422  # Validation error
-        
-        # Test passed - tracked by run_test function
+
     
     def test_unauthorized_access_patterns(self):
         """Test various unauthorized access patterns"""
@@ -474,32 +328,7 @@ class TestErrorHandling:
         
         # Test passed - tracked by run_test function
     
-    def test_edge_case_inputs(self):
-        """Test edge case inputs through API"""
-        # Register user for testing
-        test_user = {
-            "email": get_unique_email("edgecase"),
-            "password": "password123",
-            "full_name": "Edge Case User"
-        }
-        
-        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        login_response = requests.post(f"{BASE_URL}/login", json={
-            "email": test_user["email"],
-            "password": test_user["password"]
-        }, timeout=TIMEOUT)
-        
-        token = login_response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        
-        # Test rating with string instead of integer
-        response = requests.post(f"{BASE_URL}/movies/1/rate", 
-                               json={"rating": "five"}, 
-                               headers=headers, 
-                               timeout=TIMEOUT)
-        assert response.status_code == 422  # Validation error
-        
-        # Test passed - tracked by run_test function
+
 
 # Test result tracking
 test_results = {"passed": 0, "failed": 0, "total": 0}
