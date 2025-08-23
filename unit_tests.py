@@ -576,7 +576,7 @@ class TestErrorHandling:
         response = requests.get(f"{BASE_URL}/nonexistent", timeout=TIMEOUT)
         assert response.status_code == 404
         
-        print(f"✅ Invalid endpoints return 404")
+        # Test passed - tracked by run_test function
     
     def test_malformed_requests(self):
         """Test malformed request handling"""
@@ -589,7 +589,7 @@ class TestErrorHandling:
         response = requests.post(f"{BASE_URL}/register", json=incomplete_user, timeout=TIMEOUT)
         assert response.status_code == 422  # Validation error
         
-        print(f"✅ Malformed requests handled with validation errors")
+        # Test passed - tracked by run_test function
     
     def test_unauthorized_access_patterns(self):
         """Test various unauthorized access patterns"""
@@ -603,7 +603,7 @@ class TestErrorHandling:
         response = requests.get(f"{BASE_URL}/profile", headers=wrong_format_headers, timeout=TIMEOUT)
         assert response.status_code == 403
         
-        print(f"✅ Unauthorized access patterns properly rejected")
+        # Test passed - tracked by run_test function
     
     def test_edge_case_inputs(self):
         """Test edge case inputs through API"""
@@ -630,7 +630,7 @@ class TestErrorHandling:
                                timeout=TIMEOUT)
         assert response.status_code == 422  # Validation error
         
-        print(f"✅ Edge case inputs handled with proper validation")
+        # Test passed - tracked by run_test function
 
 # Test result tracking
 test_results = {"passed": 0, "failed": 0, "total": 0}
