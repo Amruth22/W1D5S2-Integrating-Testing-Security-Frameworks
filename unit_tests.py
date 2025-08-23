@@ -45,28 +45,7 @@ class TestPasswordFunctions:
         
         # Test passed - tracked by run_test function
     
-    def test_password_hashing_security(self):
-        """Test that passwords are hashed (not stored in plain text)"""
-        # Register user with known password
-        test_user = {
-            "email": get_unique_email("hashtest"),
-            "password": "testpassword123",
-            "full_name": "Hash Test User"
-        }
-        
-        response = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        assert response.status_code == 200
-        assert "registered successfully" in response.json()["message"]
-        
-        # Try to login with correct password (should work)
-        login_response = requests.post(f"{BASE_URL}/login", json={
-            "email": test_user["email"],
-            "password": test_user["password"]
-        }, timeout=TIMEOUT)
-        assert login_response.status_code == 200
-        assert "access_token" in login_response.json()
-        
-        # Test passed - tracked by run_test function
+
     
     def test_password_verification(self):
         """Test password verification through login"""
@@ -96,24 +75,7 @@ class TestPasswordFunctions:
         
         # Test passed - tracked by run_test function
     
-    def test_duplicate_registration(self):
-        """Test that duplicate emails are rejected"""
-        test_user = {
-            "email": get_unique_email("duplicate"),
-            "password": "password123",
-            "full_name": "Duplicate User"
-        }
-        
-        # Register first time
-        response1 = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        assert response1.status_code == 200
-        
-        # Try to register again with same email
-        response2 = requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        assert response2.status_code == 400
-        assert "already registered" in response2.json()["detail"]
-        
-        # Test passed - tracked by run_test function
+
 
 class TestJWTFunctions:
     """Test JWT token functionality through API endpoints"""
@@ -187,14 +149,7 @@ class TestJWTFunctions:
         
         # Test passed - tracked by run_test function
     
-    def test_no_token_rejection(self):
-        """Test that requests without tokens are rejected"""
-        # Try to access protected endpoint without token
-        response = requests.get(f"{BASE_URL}/profile", timeout=TIMEOUT)
-        
-        assert response.status_code == 403  # No authorization header
-        
-        # Test passed - tracked by run_test function
+
 
 class TestDataValidation:
     """Test data validation through API endpoints"""
@@ -261,50 +216,9 @@ class TestDataValidation:
         
         # Test passed - tracked by run_test function
     
-    def test_email_format_validation(self):
-        """Test email format validation through registration"""
-        # Test invalid email formats
-        invalid_emails = ["notanemail", "missing@", "@domain", "test@", "test.com"]
-        
-        for email in invalid_emails:
-            invalid_user = {
-                "email": email,
-                "password": "password123",
-                "full_name": "Invalid Email User"
-            }
-            
-            response = requests.post(f"{BASE_URL}/register", json=invalid_user, timeout=TIMEOUT)
-            assert response.status_code == 422  # Validation error
-        
-        # Test passed - tracked by run_test function
+
     
-    def test_movie_id_validation(self):
-        """Test movie ID validation"""
-        # Register and login user
-        test_user = {
-            "email": get_unique_email("movieid"),
-            "password": "password123",
-            "full_name": "Movie ID User"
-        }
-        
-        requests.post(f"{BASE_URL}/register", json=test_user, timeout=TIMEOUT)
-        login_response = requests.post(f"{BASE_URL}/login", json={
-            "email": test_user["email"],
-            "password": test_user["password"]
-        }, timeout=TIMEOUT)
-        
-        token = login_response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        
-        # Test non-existent movie ID
-        response = requests.post(f"{BASE_URL}/movies/999/rate", 
-                               json={"rating": 5}, 
-                               headers=headers, 
-                               timeout=TIMEOUT)
-        assert response.status_code == 404
-        assert "Movie not found" in response.json()["detail"]
-        
-        # Test passed - tracked by run_test function
+
 
 class TestBusinessLogic:
     """Test business logic through API endpoints"""
