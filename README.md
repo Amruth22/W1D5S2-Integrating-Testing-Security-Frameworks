@@ -34,7 +34,7 @@ Visit: http://localhost:8000/docs to see the interactive API documentation!
 python test_api.py
 
 # Run unit tests (individual functions)
-python unit_tests.py
+python unit_test.py
 
 # Or run both with pytest
 pytest -v
@@ -79,7 +79,7 @@ def test_user_login():
     assert "access_token" in response.json()
 ```
 
-### **Unit Tests** (`unit_tests.py`)
+### **Unit Tests** (`unit_test.py`)
 Test individual functions directly:
 
 ```python
@@ -120,7 +120,7 @@ def test_jwt_token_creation():
 
 ### Step 2: Run Tests
 1. **Integration Tests**: `python test_api.py` (tests complete API)
-2. **Unit Tests**: `python unit_tests.py` (tests individual functions)
+2. **Unit Tests**: `python unit_test.py` (tests individual functions)
 3. **All Tests**: `pytest -v` (runs both types)
 4. Compare the difference between unit and integration testing
 
@@ -140,7 +140,7 @@ def test_jwt_token_creation():
 ```
 ├── main.py           # Main FastAPI application
 ├── test_api.py       # Integration tests (API endpoints)
-├── unit_tests.py     # Unit tests (individual functions)
+├── unit_test.py     # Unit tests (individual functions)
 ├── security_check.py # Security testing
 ├── requirements.txt  # Dependencies
 └── README.md        # This file
@@ -197,7 +197,7 @@ def test_jwt_token_creation():
 - Missing tokens
 - Protected endpoints
 
-### **Unit Tests** (`unit_tests.py`)
+### **Unit Tests** (`unit_test.py`)
 
 #### 1. **Password Functions** (`TestPasswordFunctions`)
 - Password hashing
