@@ -276,7 +276,7 @@ class TestDataValidation:
             response = requests.post(f"{BASE_URL}/register", json=invalid_user, timeout=TIMEOUT)
             assert response.status_code == 422  # Validation error
         
-        print(f"✅ Invalid email formats rejected via API")
+        # Test passed - tracked by run_test function
     
     def test_movie_id_validation(self):
         """Test movie ID validation"""
@@ -304,7 +304,7 @@ class TestDataValidation:
         assert response.status_code == 404
         assert "Movie not found" in response.json()["detail"]
         
-        print(f"✅ Invalid movie IDs rejected via API")
+        # Test passed - tracked by run_test function
 
 class TestBusinessLogic:
     """Test business logic through API endpoints"""
@@ -352,7 +352,7 @@ class TestBusinessLogic:
         assert abs(actual_average - expected_average) < 0.1
         assert movie_data["total_ratings"] >= len(ratings)
         
-        print(f"✅ Average rating calculation works: {ratings} -> {actual_average}")
+        # Test passed - tracked by run_test function
     
     def test_user_rating_history(self):
         """Test user rating history through profile"""
@@ -393,7 +393,7 @@ class TestBusinessLogic:
         for movie_id, expected_rating in movie_ratings:
             assert user_ratings[movie_id] == expected_rating
         
-        print(f"✅ User rating history works correctly")
+        # Test passed - tracked by run_test function
     
     def test_movie_without_ratings(self):
         """Test movie display when no ratings exist"""
@@ -409,7 +409,7 @@ class TestBusinessLogic:
         if movie_data["total_ratings"] == 0:
             assert movie_data["average_rating"] is None
         
-        print(f"✅ Movies without ratings handled correctly")
+        # Test passed - tracked by run_test function
 
 class TestAPIResponseStructures:
     """Test API response structures"""
@@ -430,7 +430,7 @@ class TestAPIResponseStructures:
         assert "email" in response_data
         assert response_data["email"] == test_user["email"]
         
-        print(f"✅ User registration response structure correct")
+        # Test passed - tracked by run_test function
     
     def test_movie_response_structure(self):
         """Test movie response structure"""
@@ -447,7 +447,7 @@ class TestAPIResponseStructures:
         assert isinstance(movie_data["year"], int)
         assert isinstance(movie_data["total_ratings"], int)
         
-        print(f"✅ Movie response structure correct")
+        # Test passed - tracked by run_test function
     
     def test_profile_response_structure(self):
         """Test profile response structure"""
@@ -482,7 +482,7 @@ class TestAPIResponseStructures:
         assert "email" in user_data
         assert "full_name" in user_data
         
-        print(f"✅ Profile response structure correct")
+        # Test passed - tracked by run_test function
 
 class TestAPIIntegration:
     """Test API integration scenarios"""
@@ -523,7 +523,7 @@ class TestAPIIntegration:
         profile_data = profile_response.json()
         assert profile_data["total_ratings"] >= 1
         
-        print(f"✅ Complete user workflow works end-to-end")
+        # Test passed - tracked by run_test function
     
     def test_concurrent_ratings(self):
         """Test multiple users rating the same movie"""
@@ -565,7 +565,7 @@ class TestAPIIntegration:
         assert movie_data["total_ratings"] >= 3
         assert movie_data["average_rating"] is not None
         
-        print(f"✅ Concurrent ratings handled correctly")
+        # Test passed - tracked by run_test function
 
 class TestErrorHandling:
     """Test error handling through API endpoints"""
